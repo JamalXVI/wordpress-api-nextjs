@@ -1,8 +1,26 @@
-version: '3.8'
+version: "3.8"
 
 services:
+  db:
+    image: mysql:5.7
+    container_name: wordpress_nextjs_mysql_db
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - ./db_data:/var/lib/mysql
+    ports:
+      - "3306"
+    networks:
+      - wordpress_nextjs_network_app
+
   wordpress:
-    image: wordpress:latest
+    build:
+      context: ./wordpress-api
+      dockerfile: Dockerfile
+    container_name: wordpress_app
     ports:
       - "8000:80"
     environment:
@@ -10,32 +28,23 @@ services:
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DB_NAME: wordpress
-    volumes:
-      - wordpress_data:/var/www/html
     depends_on:
       - db
-
-  db:
-    image: mysql:5.7
-    environment:
-      MYSQL_DATABASE: wordpress
-      MYSQL_USER: wordpress
-      MYSQL_PASSWORD: wordpress
-      MYSQL_ROOT_PASSWORD: root
-    volumes:
-      - db_data:/var/lib/mysql
+    networks:
+      - wordpress_nextjs_network_app
 
   nextjs:
-    image: node:16
-    working_dir: /app
-    volumes:
-      - ./nextjs:/app
-    command: sh -c "npm install && npm run dev"
+    build:
+      context: .
+      dockerfile: Dockerfile.next
+    container_name: nextjs_app
     ports:
       - "3000:3000"
     depends_on:
       - wordpress
+    networks:
+      - wordpress_nextjs_network_app
 
-volumes:
-  wordpress_data:
-  db_data:
+networks:
+  wordpress_nextjs_network_app:
+    driver: bridge
