@@ -24,6 +24,7 @@ services:
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DB_NAME: wordpress
+      JWT_AUTH_SECRET_KEY: "test_secret_key"
     depends_on:
       - db
     networks:
