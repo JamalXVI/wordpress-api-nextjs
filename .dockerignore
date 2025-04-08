@@ -2,3 +2,5 @@ node_modules
 db_data
 wordpress-api
 .git
+laravel-api
+scripts

@@ -1,16 +1,12 @@
-version: "3.8"
-
 services:
   db:
     image: mysql:5.7
-    container_name: wordpress_nextjs_mysql_db
+    container_name: mysql_db
     environment:
-      MYSQL_DATABASE: wordpress
-      MYSQL_USER: wordpress
-      MYSQL_PASSWORD: wordpress
       MYSQL_ROOT_PASSWORD: root
     volumes:
       - ./db_data:/var/lib/mysql
+      - ./scripts/init-multi-db.sql:/docker-entrypoint-initdb.d/init-multi-db.sql:ro
     ports:
       - "3306"
     networks:
@@ -44,6 +40,26 @@ services:
       - wordpress
     networks:
       - wordpress_nextjs_network_app
+
+  laravel:
+    build:
+      context: ./laravel-api
+      dockerfile: Dockerfile
+    container_name: laravel_app
+    ports:
+      - "8001:8000"  # Mapeando a porta 8000 do container para a 8001 do host
+    volumes:
+      - ./laravel-api:/var/www/html
+    environment:
+      DB_HOST: db
+      DB_DATABASE: laravel
+      DB_USERNAME: laravel
+      DB_PASSWORD: laravel
+    depends_on:
+      - db
+    networks:
+      - wordpress_nextjs_network_app
+
 
 networks:
   wordpress_nextjs_network_app:
