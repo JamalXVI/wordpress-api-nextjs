@@ -1,12 +1,22 @@
 services:
   db:
-    image: mysql:5.7
+    image: mysql:5.6
     container_name: mysql_db
     environment:
       MYSQL_ROOT_PASSWORD: root
     volumes:
       - ./db_data:/var/lib/mysql
-      - ./scripts/init-multi-db.sql:/docker-entrypoint-initdb.d/init-multi-db.sql:ro
+      - ./mysql/init-mysql:/docker-entrypoint-initdb.d:ro
+      - ./mysql/mysql_always_init:/always-initdb.d:ro
+      - ./mysql/mysql-entrypoint.sh:/custom-entrypoint.sh:ro
+    healthcheck:
+      test: mysqladmin ping -h 127.0.0.1 -u $$MYSQL_USER --password=$$MYSQL_PASSWORD
+      start_period: 5s
+      interval: 5s
+      timeout: 5s
+      retries: 55
+    entrypoint: /custom-entrypoint.sh
+    command: ["mysqld"]
     ports:
       - "3306"
     networks:
@@ -39,6 +49,7 @@ services:
       - "3000:3000"
     depends_on:
       - wordpress
+      - laravel
     networks:
       - wordpress_nextjs_network_app
 
@@ -56,8 +67,11 @@ services:
       DB_DATABASE: laravel
       DB_USERNAME: laravel
       DB_PASSWORD: laravel
+      WP_API_BASE_URL: http://wordpress_app/wp-json/wp/v2
+      WP_API_JWT_TOKEN: "test_secret_key"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - wordpress_nextjs_network_app
 
