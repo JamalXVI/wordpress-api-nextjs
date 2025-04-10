@@ -23,7 +23,9 @@ services:
       - wordpress_nextjs_network_app
 
   wordpress:
-    image: wordpress:latest
+    build:
+      context: ./wordpress-api
+      dockerfile: Dockerfile
     container_name: wordpress_app
     ports:
       - "8000:80"
@@ -36,12 +38,13 @@ services:
     volumes:
       - ./wordpress-api/config/php.conf.ini:/usr/local/etc/php/conf.d/php.ini
       - ./wordpress-api/content:/var/www/html
+      - ./wordpress-api/health.php:/var/www/html/health.php:ro
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:80/wp-json/ || exit 1"]
-      interval: 30s
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost:80/health.php || exit 1"]
+      interval: 60s
       timeout: 5s
       retries: 3
       start_period: 15s
