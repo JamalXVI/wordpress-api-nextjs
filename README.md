@@ -8,8 +8,8 @@ A aplicação é composta por:
 
 - **MySQL**: Banco de dados responsável pelo armazenamento de dados para WordPress e Laravel.
 - **WordPress**: Sistema de gerenciamento de conteúdo (CMS), configurado para usar o banco de dados MySQL.
-- **Laravel**: Framework PHP para desenvolvimento backend, integrado ao banco de dados MySQL.
-- **Next.js**: Framework React para o frontend, consumindo a API do WordPress.
+- **Laravel**: Framework PHP para desenvolvimento backend, integrado ao banco de dados MySQL e com acesso à API do WordPress.
+- **Next.js**: Framework React para o frontend, consumindo as APIs do WordPress e Laravel.
 
 ---
 
@@ -23,63 +23,90 @@ A aplicação é composta por:
 ## Serviços no Docker Compose
 
 ### 1. **MySQL (`db`)**
-Banco de dados MySQL v5.7 usado por WordPress e Laravel.
 
-- **Image**: `mysql:5.7`
+Banco de dados MySQL v5.6 usado pelo WordPress e Laravel.
+
+- **Imagem utilizada**: `mysql:5.6`
 - **Portas**: `3306`
 - **Credenciais do Banco**:
-    - Usuário root: `root`
-    - Senha: `root`
+    - `MYSQL_ROOT_PASSWORD`: `root`
 - **Volumes**:
     - `./db_data:/var/lib/mysql`: Persistência dos dados do banco.
-    - `./scripts/init-multi-db.sql:/docker-entrypoint-initdb.d/init-multi-db.sql:ro`: Script de inicialização.
+    - `./mysql/init-mysql:/docker-entrypoint-initdb.d`: Scripts de inicialização do banco.
+    - `./mysql/mysql_always_init:/always-initdb.d`: Scripts que sempre irão rodar na inicialização.
+    - `./mysql/mysql-entrypoint.sh:/custom-entrypoint.sh`: Entrypoint personalizado.
+- **Saúde do Serviço** (`healthcheck`):
+    - Testa a conectividade via `mysqladmin ping`.
+    - Configurações:
+        - `start_period`: 5 segundos
+        - `interval`: 5 segundos
+        - `timeout`: 5 segundos
+        - `retries`: 55 tentativas
+- **Entrypoint**: Script customizado `/custom-entrypoint.sh`.
+- **Comando**: Inicia o serviço com `mysqld`.
 
 ---
 
-### 2. **WordPress (`wordpress`)**
-O CMS WordPress configurado para integração com MySQL.
+#### **Notas Importantes**:
 
-- **Dockerfile**: Localizado em `./wordpress-api/Dockerfile`.
-- **Portas**:
-    - `8000` (host) → `80` (container).
-- **Variáveis de Ambiente**:
-    - `WORDPRESS_DB_HOST`: Host do banco (`db:3306`).
-    - `WORDPRESS_DB_USER`: `wordpress`
-    - `WORDPRESS_DB_PASSWORD`: `wordpress`
-    - `WORDPRESS_DB_NAME`: `wordpress`
-    - `JWT_AUTH_SECRET_KEY`: Chave de autenticação para JWT.
+> ⚠️ **Pode demorar alguns minutos na primeira inicialização**
+
+Devido à forma como o serviço foi projetado, especialmente ao aplicar os scripts de inicialização e regeneração do banco de dados, o MySQL pode levar alguns minutos para estar totalmente operacional na **primeira inicialização**.
+
+---
+
+> ⚠️ **Regeneração planejada para homologação e teste**
+
+O banco de dados MySQL foi configurado para ser uma **base de homologação e teste**, ou seja:
+- Ele será **regenerado sempre que iniciado**, descartando os dados anteriores.
+- O WordPress também está configurado para **popular automaticamente** a base de dados caso não encontre as informações.
+
+Isso garante que o ambiente esteja sempre em um estado limpo e funcional para fins de desenvolvimento e testes.
 
 ---
 
 ### 3. **Next.js (`nextjs`)**
+
 Aplicação frontend utilizando Next.js.
 
-- **Dockerfile**: Localizado em `./Dockerfile.next`.
+- **Build**:
+    - Contexto: Diretório raiz (`.`).
+    - Arquivo Dockerfile: `Dockerfile.next`.
 - **Portas**:
     - `3000` (host) → `3000` (container).
-- **Dependência**: O serviço depende do WordPress para fornecer dados de API.
+- **Dependências**:
+    - Depende dos serviços `wordpress` e `laravel` para consumo das APIs.
 
 ---
 
 ### 4. **Laravel (`laravel`)**
-API backend construída com Laravel, integrada ao MySQL.
 
-- **Dockerfile**: Localizado em `./laravel-api/Dockerfile`.
+API backend construída com Laravel, integrada ao MySQL e com comunicação com a API do WordPress.
+
+- **Build**:
+    - Contexto: `./laravel-api`.
+    - Arquivo Dockerfile: `./laravel-api/Dockerfile`.
 - **Portas**:
     - `8001` (host) → `8000` (container).
-- **Volumens**:
-    - `./laravel-api:/var/www/html`: Sincroniza o código do Laravel.
+- **Volumes**:
+    - `./laravel-api:/var/www/html`: Sincronização do código do Laravel.
 - **Variáveis de Ambiente**:
-    - `DB_HOST`: Host do banco (`db`).
+    - `DB_HOST`: `db`
     - `DB_DATABASE`: `laravel`
     - `DB_USERNAME`: `laravel`
-    - `DB_PASSWORD`: `laravel`.
+    - `DB_PASSWORD`: `laravel`
+    - `WP_API_BASE_URL`: `http://wordpress_app/wp-json/wp/v2`
+    - `WP_API_JWT_TOKEN`: Chave JWT para integrar com a API do WordPress (`test_secret_key`).
+- **Dependências**:
+    - Depende do serviço `db` e só inicia quando o estado de saúde estiver definido como saudável (`service_healthy`).
 
 ---
 
 ### Redes
 
-Todos os serviços estão conectados a uma rede Docker chamada `wordpress_nextjs_network_app` configurada como `driver: bridge`.
+Todos os serviços estão conectados a uma rede Docker chamada `wordpress_nextjs_network_app` configurada como:
+
+- **Driver**: `bridge`
 
 ---
 
@@ -109,8 +136,10 @@ Todos os serviços estão conectados a uma rede Docker chamada `wordpress_nextjs
 ```plaintext
 .
 ├── db_data/                      # Dados persistentes do MySQL
-├── scripts/
-│   └── init-multi-db.sql         # Script para inicialização do banco de dados
+├── mysql/
+│   ├── init-mysql/               # Scripts de inicialização one-time do MySQL
+│   ├── mysql_always_init/        # Scripts que sempre iniciam com o banco
+│   └── mysql-entrypoint.sh       # Entrypoint personalizado para o MySQL
 ├── wordpress-api/
 │   ├── Dockerfile                # Dockerfile para o WordPress
 │   └── ...                       # Código do WordPress
@@ -126,35 +155,32 @@ Todos os serviços estão conectados a uma rede Docker chamada `wordpress_nextjs
 ## Personalizações
 
 - **Banco de Dados**:
-    - Alterar configurações no arquivo `./scripts/init-multi-db.sql` para criar múltiplos bancos ou ajustar permissões.
-
+    - Ajustar os scripts em `./mysql` para criar múltiplas tabelas, bancos ou alterar permissões.
 - **WordPress**:
-    - Modifique o arquivo `./wordpress-api/Dockerfile` para personalizações específicas.
-
+    - Alterar o Dockerfile em `./wordpress-api/Dockerfile` para instalar temas, plugins ou configurações padrão.
 - **Laravel**:
-    - Sobrescreva configurações do `.env` ou edite as variáveis de ambiente no `docker-compose.yml`.
-
+    - Configurações adicionais podem ser feitas no `.env` ou direto nas variáveis do `docker-compose.yml`.
 - **Next.js**:
-    - Ajustar o código fonte para consumir a API do WordPress e Laravel conforme necessário.
+    - Atualizar o frontend para consumir novas rotas da API do WordPress e Laravel.
 
 ---
 
 ## Comandos Úteis
 
-- **Parar o ambiente**:
-  ```bash
-  docker-compose down
-  ```
+### Parar o ambiente:
+```bash
+docker-compose down
+```
 
-- **Excluir volumes**:
-  ```bash
-  docker-compose down -v
-  ```
+### Excluir volumes:
+```bash
+docker-compose down -v
+```
 
-- **Reiniciar com build atualizado**:
-  ```bash
-  docker-compose up --build
-  ```
+### Reiniciar o ambiente com build atualizado:
+```bash
+docker-compose up --build
+``` 
 
 ---
 
