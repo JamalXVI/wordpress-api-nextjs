@@ -23,9 +23,7 @@ services:
       - wordpress_nextjs_network_app
 
   wordpress:
-    build:
-      context: ./wordpress-api
-      dockerfile: Dockerfile
+    image: wordpress:latest
     container_name: wordpress_app
     ports:
       - "8000:80"
@@ -35,21 +33,62 @@ services:
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DB_NAME: wordpress
       JWT_AUTH_SECRET_KEY: "test_secret_key"
+    volumes:
+      - ./wordpress-api/config/php.conf.ini:/usr/local/etc/php/conf.d/php.ini
+      - ./wordpress-api/content:/var/www/html
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/wp-json/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     networks:
       - wordpress_nextjs_network_app
 
+  wpcli:
+    build: ./wp-cli/
+    image: tatemz/wp-cli
+    container_name: wordpress_wpcli
+    user: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_healthy
+    volumes:
+      - ./wordpress-api/content:/var/www/html
+      - ./wordpress-api/plugins:/plugins:ro
+    working_dir: /var/www/html
+    environment:
+      WORDPRESS_DB_HOST: "db:3306"
+      WORDPRESS_SITE_URL: "http://localhost:8000"
+      WORDPRESS_SITE_TITLE: "Meu Site CLI"
+      WORDPRESS_ADMIN_USER: "admin"
+      WORDPRESS_ADMIN_PASSWORD: "admin"
+      WORDPRESS_ADMIN_EMAIL: "admin@example.com"
+      WORDPRESS_DB_USER: "wordpress"
+      WORDPRESS_DB_PASSWORD: "wordpress"
+      WORDPRESS_DB_NAME: "wordpress"
+    command: [ "install" ]
+    networks:
+      - wordpress_nextjs_network_app
+
+
   nextjs:
     build:
-      context: .
-      dockerfile: Dockerfile.next
+      context: ./front-end
+      dockerfile: Dockerfile
     container_name: nextjs_app
     ports:
       - "3000:3000"
     depends_on:
-      - wordpress
-      - laravel
+      wordpress:
+        condition: service_healthy
+      laravel:
+        condition: service_healthy
     networks:
       - wordpress_nextjs_network_app
 
@@ -63,12 +102,21 @@ services:
     volumes:
       - ./laravel-api:/var/www/html
     environment:
+      APP_URL: "http://localhost:8001"
+      SESSION_DOMAIN: "localhost"
       DB_HOST: db
       DB_DATABASE: laravel
       DB_USERNAME: laravel
       DB_PASSWORD: laravel
       WP_API_BASE_URL: http://wordpress_app/wp-json/wp/v2
       WP_API_JWT_TOKEN: "test_secret_key"
+      APP_KEY: "base64:LDWAUvKcL/Rp6uql12M2Rhb+AFs+F3xEB4kyWwGT2HQ="
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      interval: 10s
+      timeout: 15s
+      retries: 3
+      start_period: 150s
     depends_on:
       db:
         condition: service_healthy
