@@ -38,7 +38,7 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-front-end/next-env.d.ts
+front-end/app/next-env.d.ts
 
 .idea
  .idea/**
@@ -47,3 +47,4 @@ db_data
 wordpress-api/content
 *.lock
 **/*.lock
+app_container

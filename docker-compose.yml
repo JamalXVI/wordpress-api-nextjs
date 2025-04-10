@@ -87,11 +87,13 @@ services:
     container_name: nextjs_app
     ports:
       - "3000:3000"
-    depends_on:
-      wordpress:
-        condition: service_healthy
-      laravel:
-        condition: service_healthy
+    volumes:
+      - ./app_container:/app
+#    depends_on:
+#      wordpress:
+#        condition: service_healthy
+#      laravel:
+#        condition: service_healthy
     networks:
       - wordpress_nextjs_network_app
 
@@ -116,10 +118,10 @@ services:
       APP_KEY: "base64:LDWAUvKcL/Rp6uql12M2Rhb+AFs+F3xEB4kyWwGT2HQ="
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
-      interval: 10s
+      interval: 15s
       timeout: 15s
       retries: 3
-      start_period: 150s
+      start_period: 60s
     depends_on:
       db:
         condition: service_healthy
