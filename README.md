@@ -10,6 +10,7 @@ A aplicação é composta por:
 - **WordPress**: Sistema de gerenciamento de conteúdo (CMS), configurado para usar o banco de dados MySQL.
 - **Laravel**: Framework PHP para desenvolvimento backend, integrado ao banco de dados MySQL e com acesso à API do WordPress.
 - **Next.js**: Framework React para o frontend, consumindo as APIs do WordPress e Laravel.
+- **WP-CLI**: Interface de linha de comando para gerenciar o WordPress.
 
 ---
 
@@ -47,31 +48,66 @@ Banco de dados MySQL v5.6 usado pelo WordPress e Laravel.
 
 ---
 
-#### **Notas Importantes**:
+### 2. **WordPress (`wordpress`)**
 
-> ⚠️ **Pode demorar alguns minutos na primeira inicialização**
+Sistema de gerenciamento de conteúdo (CMS) configurado para se conectar ao MySQL.
 
-Devido à forma como o serviço foi projetado, especialmente ao aplicar os scripts de inicialização e regeneração do banco de dados, o MySQL pode levar alguns minutos para estar totalmente operacional na **primeira inicialização**.
+- **Build**:
+    - Contexto: `./wordpress-api`.
+    - Arquivo Dockerfile: `Dockerfile`.
+- **Portas**:
+    - `8000` (host) → `80` (container).
+- **Volumes**:
+    - `./wordpress-api/config/php.conf.ini:/usr/local/etc/php/conf.d/php.ini`: Configuração do PHP.
+    - `./wordpress-api/content:/var/www/html`: Conteúdo do WordPress.
+    - `./wordpress-api/health.php:/var/www/html/health.php`: Script de verificação de saúde.
+- **Variáveis de Ambiente**:
+    - `WORDPRESS_DB_HOST`: `db:3306`
+    - `WORDPRESS_DB_USER`: `wordpress`
+    - `WORDPRESS_DB_PASSWORD`: `wordpress`
+    - `WORDPRESS_DB_NAME`: `wordpress`
+    - `JWT_AUTH_SECRET_KEY`: `test_secret_key`
+- **Saúde do Serviço** (`healthcheck`):
+    - Verifica o script `health.php`:
+        - `interval`: 60 segundos.
+        - `timeout`: 5 segundos.
+        - `retries`: 3 vezes.
+        - `start_period`: 15 segundos.
+- **Dependências**:
+    - O serviço só inicia quando o banco (`db`) está saudável.
 
 ---
 
-> ⚠️ **Regeneração planejada para homologação e teste**
+### 3. **WP-CLI (`wpcli`)**
 
-O banco de dados MySQL foi configurado para ser uma **base de homologação e teste**, ou seja:
-- Ele será **regenerado sempre que iniciado**, descartando os dados anteriores.
-- O WordPress também está configurado para **popular automaticamente** a base de dados caso não encontre as informações.
+Interface de linha de comando para gerenciar o WordPress. Permite executar comandos diretamente relacionados ao gerenciamento do WordPress, como instalação inicial e manutenção.
 
-Isso garante que o ambiente esteja sempre em um estado limpo e funcional para fins de desenvolvimento e testes.
+- **Build**:
+    - Contexto: `./wp-cli`.
+- **Imagem utilizada**: `tatemz/wp-cli`
+- **Volumes**:
+    - `./wordpress-api/content:/var/www/html`: Conteúdo do WordPress.
+    - `./wordpress-api/plugins:/plugins`: Diretório dos plugins do WordPress.
+- **Dependências**:
+    - O serviço exige que **MySQL** (`db`) e **WordPress** (`wordpress`) estejam saudáveis para iniciar.
+- **Variáveis de Ambiente**:
+    - `WORDPRESS_DB_HOST`: `db:3306`
+    - `WORDPRESS_SITE_URL`: `http://localhost:8000`
+    - `WORDPRESS_SITE_TITLE`: `Meu Site CLI`
+    - `WORDPRESS_ADMIN_USER`: `admin`
+    - `WORDPRESS_ADMIN_PASSWORD`: `admin`
+    - `WORDPRESS_ADMIN_EMAIL`: `admin@example.com`
+- **Comando**: Realiza a instalação inicial do WordPress usando o comando `[ "install" ]`.
 
 ---
 
-### 3. **Next.js (`nextjs`)**
+### 4. **Next.js (`nextjs`)**
 
 Aplicação frontend utilizando Next.js.
 
 - **Build**:
-    - Contexto: Diretório raiz (`.`).
-    - Arquivo Dockerfile: `Dockerfile.next`.
+    - Contexto: `./front-end`.
+    - Arquivo Dockerfile: `Dockerfile`.
 - **Portas**:
     - `3000` (host) → `3000` (container).
 - **Dependências**:
@@ -79,13 +115,13 @@ Aplicação frontend utilizando Next.js.
 
 ---
 
-### 4. **Laravel (`laravel`)**
+### 5. **Laravel (`laravel`)**
 
 API backend construída com Laravel, integrada ao MySQL e com comunicação com a API do WordPress.
 
 - **Build**:
     - Contexto: `./laravel-api`.
-    - Arquivo Dockerfile: `./laravel-api/Dockerfile`.
+    - Arquivo Dockerfile: `Dockerfile`.
 - **Portas**:
     - `8001` (host) → `8000` (container).
 - **Volumes**:
@@ -96,9 +132,18 @@ API backend construída com Laravel, integrada ao MySQL e com comunicação com 
     - `DB_USERNAME`: `laravel`
     - `DB_PASSWORD`: `laravel`
     - `WP_API_BASE_URL`: `http://wordpress_app/wp-json/wp/v2`
-    - `WP_API_JWT_TOKEN`: Chave JWT para integrar com a API do WordPress (`test_secret_key`).
+    - `WP_API_JWT_TOKEN`: `test_secret_key`
+    - `APP_URL`: `http://localhost:8001`
+    - `SESSION_DOMAIN`: `localhost`
+    - `APP_KEY`: `base64:LDWAUvKcL/Rp6uql12M2Rhb+AFs+F3xEB4kyWwGT2HQ=`
+- **Saúde do Serviço** (`healthcheck`):
+    - Verifica o endpoint `/health`:
+        - Intervalo: 30 segundos.
+        - Timeout: 15 segundos.
+        - Retentativas: 3 vezes.
+        - Período de inicialização: 150 segundos.
 - **Dependências**:
-    - Depende do serviço `db` e só inicia quando o estado de saúde estiver definido como saudável (`service_healthy`).
+    - O serviço exige que o banco (`db`) esteja saudável para iniciar.
 
 ---
 
@@ -106,7 +151,7 @@ API backend construída com Laravel, integrada ao MySQL e com comunicação com 
 
 Todos os serviços estão conectados a uma rede Docker chamada `wordpress_nextjs_network_app` configurada como:
 
-- **Driver**: `bridge`
+- **Driver**: `bridge`.
 
 ---
 
@@ -146,7 +191,11 @@ Todos os serviços estão conectados a uma rede Docker chamada `wordpress_nextjs
 ├── laravel-api/
 │   ├── Dockerfile                # Dockerfile para o Laravel
 │   └── ...                       # Código do Laravel
-├── Dockerfile.next               # Dockerfile para o Next.js
+├── front-end/
+│   ├── Dockerfile                # Dockerfile para o Next.js
+│   └── ...                       # Código do Frontend
+├── wp-cli/
+│   └── ...                       # Arquivos de configuração do WP-CLI
 └── docker-compose.yml            # Configuração do Docker Compose
 ```
 
@@ -162,44 +211,6 @@ Todos os serviços estão conectados a uma rede Docker chamada `wordpress_nextjs
     - Configurações adicionais podem ser feitas no `.env` ou direto nas variáveis do `docker-compose.yml`.
 - **Next.js**:
     - Atualizar o frontend para consumir novas rotas da API do WordPress e Laravel.
-
----
-
-## Comandos Úteis
-
-### Parar o ambiente:
-```bash
-docker-compose down
-```
-
-### Excluir volumes:
-```bash
-docker-compose down -v
-```
-
-### Reiniciar o ambiente com build atualizado:
-```bash
-docker-compose up --build
-``` 
-
----
-
-## Contribuindo
-
-1. Faça o fork do projeto.
-2. Crie um branch para suas alterações:
-   ```bash
-   git checkout -b feature/nova-funcionalidade
-   ```
-3. Faça o commit das alterações:
-   ```bash
-   git commit -m "Adiciona nova funcionalidade"
-   ```
-4. Envie para o branch:
-   ```bash
-   git push origin feature/nova-funcionalidade
-   ```
-5. Abra um Pull Request.
 
 ---
 
