@@ -1,21 +1,18 @@
 #!/bin/bash
 set -e
-composer install --no-interaction --prefer-dist
-if [ ! -f storage/.breeze_installed ]; then
 
-    composer require laravel/breeze --dev -vvv
+cd /var/www/html
 
-    php artisan breeze:install blade --no-interaction -vvv
 
-    if [ -f package.json ]; then
-      npm install --verbose
-      npm run dev --verbose &
-    fi
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
 
-    touch storage/.breeze_installed
-
-fi
 
 php artisan migrate --force -vvv
+
+
+php artisan tinker --execute="if(!\App\Models\User::exists()){ \App\Models\User::create(['name'=>'root','email'=>'root@example.com','password'=>bcrypt('root')]); }"
+
 
 exec php artisan serve --host=0.0.0.0 --port=8000
