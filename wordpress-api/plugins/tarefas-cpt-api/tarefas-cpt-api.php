@@ -103,3 +103,47 @@ add_action('rest_api_init', function () {
 function task_callback( WP_REST_Request $request ) {
     return rest_ensure_response( array('message' => 'Acesso garantido com JWT válido.') );
 }
+/**
+ * Callback para listar todas as tasks.
+ */
+function list_tasks_callback( WP_REST_Request $request ) {
+    // Define os parâmetros para buscar todas as tasks
+    $args = array(
+        'post_type'      => 'tasks',
+        'posts_per_page' => -1, // retorna todas
+    );
+    $query = new WP_Query( $args );
+    $tasks = array();
+
+    if ( $query->have_posts() ) {
+        while ( $query->have_posts() ) {
+            $query->the_post();
+            $tasks[] = array(
+                'id'       => get_the_ID(),
+                'title'    => get_the_title(),
+                'content'  => apply_filters('the_content', get_the_content()),
+                'status'   => get_post_meta( get_the_ID(), 'status', true ),
+                'deadline' => get_post_meta( get_the_ID(), 'deadline', true ),
+            );
+        }
+        wp_reset_postdata();
+    }
+
+    return rest_ensure_response( $tasks );
+}
+add_action('rest_api_init', function () {
+    // Rota para acesso seguro (com verificação JWT)
+    register_rest_route('task/v1', '/tasks', array(
+        'methods'             => 'GET',
+        'callback'            => 'list_tasks_callback',
+        'permission_callback' => function () {
+            // Se preferir que a listagem seja pública, retorne true aqui;
+            // Para proteger com JWT, utilize sua callback de autenticação:
+            $auth = authenticator_callback();
+            if ( is_wp_error( $auth ) ) {
+                return $auth;
+            }
+            return true;
+        },
+    ));
+});
