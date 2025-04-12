@@ -1,0 +1,235 @@
+{
+	"info": {
+		"_postman_id": "1e4f7fe2-5e27-483f-b7cb-d1ca3d763fd6",
+		"name": "Desafio Canal Tech",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "5534666"
+	},
+	"item": [
+		{
+			"name": "[Wordpress] Auth",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    var jsonData = pm.response.json();\r",
+							"    pm.collectionVariables.set(\"WORDPRESS_TOKEN\", jsonData[\"token\"]);\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"username\": \"admin\",\r\n    \"password\": \"admin\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://{{WORDPRESS_URL}}/wp-json/jwt-auth/v1/token",
+					"protocol": "http",
+					"host": [
+						"{{WORDPRESS_URL}}"
+					],
+					"path": [
+						"wp-json",
+						"jwt-auth",
+						"v1",
+						"token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "[Wordpress] Lista Tarefas",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "http://{{WORDPRESS_URL}}/wp-json/tasks/1",
+					"protocol": "http",
+					"host": [
+						"{{WORDPRESS_URL}}"
+					],
+					"path": [
+						"wp-json",
+						"tasks",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "[Laravel] Auth",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    var jsonData = pm.response.json();\r",
+							"    pm.collectionVariables.set(\"LARAVEL_TOKEN\", jsonData[\"token\"]);\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"email\": \"root@example.com \", \"password\": \"root\"}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8001/api/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8001",
+					"path": [
+						"api",
+						"login"
+					]
+				},
+				"description": "Generated from cURL: curl -X POST http://localhost:8001/api/login \\\r\n     -H \"Accept: application/json\" \\\r\n     -H \"Content-Type: application/json\" \\\r\n     -d '{\"email\": \"admin@example.com\", \"password\": \"admin\"}'"
+			},
+			"response": []
+		},
+		{
+			"name": "[Laravel] Get Tasks",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{LARAVEL_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-WordPress-Token",
+						"value": "{{WORDPRESS_TOKEN}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://{{LARAVEL_URL}}/api/tasks",
+					"protocol": "http",
+					"host": [
+						"{{LARAVEL_URL}}"
+					],
+					"path": [
+						"api",
+						"tasks"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "[Laravel] Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8001/api/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8001",
+					"path": [
+						"api",
+						"login"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "WORDPRESS_URL",
+			"value": "localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "LARAVEL_URL",
+			"value": "localhost:8001",
+			"type": "string"
+		},
+		{
+			"key": "WORDPRESS_TOKEN",
+			"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDAiLCJpYXQiOjE3NDQ0MDE4MzIsIm5iZiI6MTc0NDQwMTgzMiwiZXhwIjoxNzQ1MDA2NjMyLCJkYXRhIjp7InVzZXIiOnsiaWQiOiIxIn19fQ.o_8qix0ke2M8CtxbNML2XmQsCpZGWA3W9TFsRVge0m4",
+			"type": "string"
+		},
+		{
+			"key": "LARAVEL_TOKEN",
+			"value": "3|11KHOgoNUcQqDZNxbCOmaQoI2aHnBjeBWoNq7O0318e228a7",
+			"type": "string"
+		}
+	]
+}
