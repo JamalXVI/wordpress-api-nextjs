@@ -75,25 +75,8 @@ services:
       WORDPRESS_DB_USER: "wordpress"
       WORDPRESS_DB_PASSWORD: "wordpress"
       WORDPRESS_DB_NAME: "wordpress"
+      WP_API_JWT_TOKEN: "test_secret_key"
     command: [ "install" ]
-    networks:
-      - wordpress_nextjs_network_app
-
-
-  nextjs:
-    build:
-      context: ./front-end
-      dockerfile: Dockerfile
-    container_name: nextjs_app
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./app_container:/app
-#    depends_on:
-#      wordpress:
-#        condition: service_healthy
-#      laravel:
-#        condition: service_healthy
     networks:
       - wordpress_nextjs_network_app
 
@@ -121,7 +104,9 @@ services:
       interval: 15s
       timeout: 15s
       retries: 3
-      start_period: 60s
+      start_period: 75s
+    mem_limit: 2g
+    cpus: 2
     depends_on:
       db:
         condition: service_healthy
